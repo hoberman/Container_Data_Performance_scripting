@@ -10,6 +10,10 @@
 # my cleanups and running my tests, but I can't guarantee yours will too. You DO have a recent
 # Time Machine backup, don't you?
 #
+# This doesn't do a lot of error checking so your mileage may vary. In particular, there's a good
+# chance it will break if any of your app Container names have spaces in them. I don't know if that's
+# even allowed, but if those exist on your system you may see some errors/faulty operation.
+#
 # CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION
 
 # Uncomment to turn on debugging
@@ -19,6 +23,10 @@
 cd ~/Library/Containers
 
 ls | sort | while read ContainerDir; do
+	if [ ! -d $ContainerDir ]; then
+		continue
+	fi
+
 	[ $debug ] && echo "Testing performance in container directory $ContainerDir"
 
 	if [ ! -d $ContainerDir/Data ]; then
