@@ -1,0 +1,70 @@
+#!/bin/zsh
+
+# CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION
+#
+# Use this at your own risk. I'm an old Unix/Linux sysadmin, not an experienced Mac developer,
+# so I don't know if/how my monkeying around in the Containers directory might affect my/your system.
+#
+# I wrote this to help me understand weirdness going on in the Library/Containers directory
+# while trying to clean up some cache data from a particular app. My system still works after
+# my cleanups and running my tests, but I can't guarantee yours will too. You DO have a recent
+# Time Machine backup, don't you?
+#
+# CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION
+
+# Uncomment to turn on debugging
+#debug=1
+
+# Change directory to where we keep our container trees.
+cd ~/Library/Containers
+
+ls | sort | while read ContainerDir; do
+	[ $debug ] && echo "Testing performance in container directory $ContainerDir"
+
+	if [ ! -d $ContainerDir/Data ]; then
+		[ $debug ] && echo "Skipping app Container $ContainerDir (can't access Data directory)"
+		[ $debug ] && echo
+		continue;
+	fi
+
+	# This is the scratch directory where we'll do our creations
+	DataTestDir=$ContainerDir/Data/perfdemo
+
+
+	[ $debug ] && echo "  Making directories..."
+
+	# Clean up in case we find our test directory left over from a previous run that got interrupted.
+	rm -rf $DataTestDir 2>/dev/null
+
+	# I do my own timing using information from "date" because the "time" command doesn't let me capture its output
+	# withough some seriously weird redirection magic.
+	StartTime=`date +%s`
+	if mkdir $DataTestDir 2>/dev/null; then
+		# Make a bunch of directories in our test location. 100 directories causes a delay - in some
+		# app Containers - of 19-20 seconds on an M1 14" Macbook Pro; I'll use a smaller number to
+		# make testing go a bit faster but that still demonstrates the problem.
+		for ((i=0; i<50; i++)); do
+			mkdir $DataTestDir/dir.$i 2>/dev/null
+		done
+
+		[ $debug ] && echo "  Doing find to create additional delay (no output)..."
+		find $DataTestDir >/dev/null
+
+		[ $debug ] && echo "  Removing directories..."
+		rm -rf $DataTestDir 2>/dev/null
+
+		EndTime=`date +%s`
+		ElapsedTime=`expr $EndTime - $StartTime`
+		if [ $ElapsedTime -le 2 ]; then
+			Status="ok"
+		else
+			Status="slow"
+		fi
+	else
+		Status="blocked"
+	fi
+
+	# Use a tab character here to get this into human-readable columns.
+	echo "$Status\t$ContainerDir"
+	[ $debug ] && echo
+done
