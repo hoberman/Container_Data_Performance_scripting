@@ -23,11 +23,20 @@ ContainerHome=~/Library/Containers
 
 ContainerName="$1"
 if [ ! "$ContainerName" ]; then
-	echo "You must specify an App Container name to test." >&2
-	echo "" >&2
-	echo "Suggestions:" >&2
+	cat <<EOF >&2
+You must specify an App Container name to test.
+
+Suggestions:
+
+EOF
 	ls $ContainerHome | grep -v "^com\.apple" | grep "^com\." | pr -t -2 -o4 -w 100 >&2
-	echo "" >&2
+
+	cat <<EOF >&2
+
+Note: To see performace delays in accessing an application's Container data tree, the
+      targeted application must have run at least once since the last system reboot.
+
+EOF
 	exit 1
 fi
 
