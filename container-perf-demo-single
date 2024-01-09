@@ -1,0 +1,79 @@
+#!/bin/zsh
+
+# CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION
+#
+#
+# Yes, I know that normally one shouldn't monkey around in 
+# Use this at your own risk. I'm an old Unix/Linux sysadmin, not an experienced Mac developer,
+# so I don't know if/how my monkeying around in the Containers directory might affect my/your system.
+#
+# I wrote this to help me understand weirdness going on in the Library/Containers directory
+# while trying to clean up some cache data from a particular app. My system still works after
+# my cleanups and running my tests, but I can't guarantee yours will too. You DO have a recent
+# Time Machine backup, don't you?
+#
+# This doesn't do a lot of error checking so your mileage may vary. 
+#
+# CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION
+
+# Uncomment to turn on debugging
+#debug=1
+
+ContainerHome=~/Library/Containers
+
+ContainerName="$1"
+if [ ! "$ContainerName" ]; then
+	echo "You must specify an App Container name to test." >&2
+	echo "" >&2
+	echo "Suggestions:" >&2
+	ls $ContainerHome | grep -v "^com\.apple" | grep "^com\." | pr -t -2 -o4 -w 100 >&2
+	echo "" >&2
+	exit 1
+fi
+
+ContainerDir="$ContainerHome/$ContainerName"
+if [ ! -d "$ContainerDir" ]; then
+	echo "No such App Container directory \"$ContainerDir\"" >&2
+	exit 1
+fi
+
+[ $debug ] && echo "Testing performance in container directory $ContainerDir"
+
+if [ ! -d "$ContainerDir/Data" ]; then
+	echo "No Data directory in $ContainerDir" >&2
+	exit 1
+fi
+
+# This is the scratch directory where we'll do our creations
+DataTestDir="$ContainerDir/Data/perfdemo"
+
+
+[ $debug ] && echo "  Making directories..."
+
+# Clean up in case we find our test directory left over from a previous run that got interrupted.
+rm -rf $DataTestDir 2>/dev/null
+
+# I do my own timing using information from "date" because the "time" command doesn't let me capture its output
+# withough some seriously weird redirection magic.
+StartTime=`date +%s`
+if ! mkdir $DataTestDir 2>/dev/null; then
+	echo "Can't create scratchpad directory for testing." >&2
+	exit 1
+fi
+
+# Make a bunch of directories in our test location. 100 directories causes a delay - in some
+# app Containers - of 19-20 seconds on an M1 14" Macbook Pro; I'll use a smaller number to
+# make testing go a bit faster but that still demonstrates the problem.
+for ((i=0; i<100; i++)); do
+	mkdir $DataTestDir/dir.$i 2>/dev/null
+done
+
+[ $debug ] && echo "  Doing find to create additional delay (no output)..."
+find $DataTestDir >/dev/null
+
+[ $debug ] && echo "  Removing directories..."
+rm -rf $DataTestDir 2>/dev/null
+
+EndTime=`date +%s`
+ElapsedTime=`expr $EndTime - $StartTime`
+echo "Elapsed time (seconds): $ElapsedTime"
