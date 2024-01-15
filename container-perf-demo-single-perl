@@ -1,0 +1,103 @@
+#!/usr/bin/perl
+
+# CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION
+#
+#
+# Yes, I know that normally one shouldn't monkey around in 
+# Use this at your own risk. I'm an old Unix/Linux sysadmin, not an experienced Mac developer,
+# so I don't know if/how my monkeying around in the Containers directory might affect my/your system.
+#
+# I wrote this to help me understand weirdness going on in the Library/Containers directory
+# while trying to clean up some cache data from a particular app. My system still works after
+# my cleanups and running my tests, but I can't guarantee yours will too. You DO have a recent
+# Time Machine backup, don't you?
+#
+# This doesn't do a lot of error checking so your mileage may vary. 
+#
+# CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION
+
+use strict;
+
+# Set to 1 to enable debugging
+my $debug=1;
+
+my $ContainerName=shift(@ARGV);
+if ( ! $ContainerName ) {
+	usagedie();
+}
+
+my $ContainerDataDir;
+
+if ($ContainerName=~/^\//) {
+	$ContainerDataDir=glob($ContainerName);
+	if ( ! -d "$ContainerDataDir" ) {
+		print STDERR "No such path \"$ContainerDataDir\"\n";
+		exit 1;
+	}
+} else {
+	$ContainerDataDir=glob("~/Library/Containers/$ContainerName/Data");
+	if ( ! -d "$ContainerDataDir" ) {
+		print STDERR "No such App Container data directory \"$ContainerDataDir\"\n";
+		exit 1;
+	}
+}
+
+$debug && print STDERR "Testing performance in directory $ContainerDataDir\n";
+
+# This is the scratch directory where we'll do our creations
+my $DataTestDir="$ContainerDataDir/perfdemo";
+
+# Clean up in case we find our test directory left over from a previous run that got interrupted.
+system("/bin/rm","-rf",$DataTestDir);
+
+# I do my own timing using information from "date" because the "time" command doesn't let me capture its output
+# withough some seriously weird redirection magic.
+my $StartTime=scalar time();
+
+$debug && print "  Making directories...\n";
+
+mkdir($DataTestDir) || die "Can't create scratchpad directory $DataTestDir for testing: $!\n";
+
+# Make a bunch of directories in our test location. 100 directories causes a delay - in some
+# app Containers - of up to 19-20 seconds on an M1 14" Macbook Pro.
+for (my $i=0; $i<100; $i++) {
+	my $SubDirectory="$DataTestDir/dir.$i";
+	mkdir($SubDirectory) || die "Can't create scratchpad subdirectory $SubDirectory for testing: $!\n";
+}
+
+$debug && print "  Doing stat() calls to create additional delay (no output)...";
+
+for (my $i=0; $i<100; $i++) {
+	my $SubDirectory="$DataTestDir/dir.$i";
+	stat($SubDirectory) || die "Can't stat() scratchpad subdirectory $SubDirectory for testing: $!\n";
+}
+
+$debug && print "  Removing scratchpad directories...\n";
+# Clean up in case we find our test directory left over from a previous run that got interrupted.
+system("/bin/rm","-rf",$DataTestDir);
+
+my $EndTime=scalar time();
+my $ElapsedTime=$EndTime-$StartTime;
+print "Elapsed time (seconds): $ElapsedTime]\n";
+
+exit 0;
+
+
+sub usagedie() {
+	print STDERR <<EOF;
+
+Usage:
+
+	$0 app
+	$0 /path/...
+
+Where:
+
+	app		Sandboxed application directory name (from ~/Library/Containers)
+	    or
+	/path/...	Full path to directory to use for scratchpad
+
+
+EOF
+	exit 1;
+}
